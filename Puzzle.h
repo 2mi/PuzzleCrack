@@ -59,10 +59,10 @@ typedef enum {
 
 #define alloc_state()	reinterpret_cast<st_martix*>(operator new (size_of_state()))
 #define initial_state(dst)	memset(dst, 0, size_of_state())
-#define copy_martix(dst, src)	dst.Martix::__Container(src, total() / 2)
+#define copy_martix(dst, src)	dst.Martix::__Container(src, (total() + 1) / 2)
 #define exchange(a, b)	st->Puzzle.swap(st_parent->blank, index)
 #define total()	(this->rank * this->rank)
-#define size_of_state() (sizeof(st_martix) - 1 + total() / 2)
+#define size_of_state() (sizeof(st_martix) - 1 + (total() + 1) / 2)
 
 /*
 	Astar using in PuzzleGame
@@ -193,7 +193,7 @@ void PuzzleGame::put_into_openqueue(st_martix *st_parent)
 	if (st_parent->blank % rank < rank - 1) {
 		alloc(LEFT, st_parent->blank + 1);
 	}
-	if (st_parent->blank < total() - 1 - rank) {
+	if (st_parent->blank < total() - rank) {
 		alloc(UP, st_parent->blank + rank);
 	}
 	if (st_parent->blank % rank > 0) {
