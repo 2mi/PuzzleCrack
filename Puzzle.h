@@ -175,7 +175,7 @@ void PuzzleGame::put_into_openqueue(st_martix *st_parent)
 	st_martix  *st;
 
 	auto alloc = [&](toward act, uint8_t index) -> void __fastcall  {
-		st = reinterpret_cast<st_martix*>(new uint8_t[sizeof(st_martix) + total()]);
+		st = alloc_state();
 		st->iParent = st_parent;
 		st->Action = act;
 
