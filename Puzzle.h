@@ -4,18 +4,17 @@
 //
 
 #include <queue>
-#include <map>
+#include <unordered_map>
 #include <stdlib.h>
 
 using std::priority_queue;
+using std::unordered_map;
 using std::vector;
-using std::deque;
 using std::string;
-using std::map;
 using Sequence = uint8_t;
 using Hash = uint32_t;
 using toward = uint8_t;
-using price = uint8_t;// !too small
+using price = uint16_t;// !too small
 
 typedef struct __Container {
 private:
@@ -40,7 +39,9 @@ public:
 		v[a >> 1] ^= temp << ((a & 1) << 2);
 		v[b >> 1] ^= temp << ((b & 1) << 2);
 	}
-
+	operator auto() -> const decltype(&*v) {
+		return v;
+	}
 };
 using Martix = __Container;
 
@@ -57,17 +58,17 @@ typedef enum {
 	LEFT = NEGATIVE | HORIZONTAL
 } __toward;
 
+#define total()	(this->rank * this->rank)
+#define size_of_state() ((uint64_t)&((st_martix *)0)->Puzzle + (total() + 1) / 2)
 #define alloc_state()	reinterpret_cast<st_martix*>(operator new (size_of_state()))
 #define initial_state(dst)	memset(dst, 0, size_of_state())
 #define copy_martix(dst, src)	dst.Martix::__Container(src, (total() + 1) / 2)
 #define exchange(a, b)	st->Puzzle.swap(st_parent->blank, index)
-#define total()	(this->rank * this->rank)
-#define size_of_state() (sizeof(st_martix) - 1 + (total() + 1) / 2)
 
 /*
 	Astar using in PuzzleGame
 */
-
+#pragma pack(push,1)
 typedef struct __st_martix {
 	__st_martix* iParent;
 	price Hx;
@@ -79,7 +80,7 @@ typedef struct __st_martix {
 		return a->Hx > b->Hx;
 	}
 }st_martix;
-
+#pragma pack(pop)
 
 class PuzzleGame
 {
@@ -87,9 +88,9 @@ public:
 	PuzzleGame(const uint8_t R = 4);
 	~PuzzleGame();
 
-	bool RecoverVector(Sequence *puzz, Sequence blank, vector<toward> &act);
+	bool Recover(Sequence *puzz, Sequence blank, vector<toward> &act);
 
-	void translateShow(vector<toward>& act, string & txt);
+	void  translateShow(vector<toward>& act, string & txt);
 
 protected:
 	Hash get_martix_state(Martix &M);
@@ -99,11 +100,12 @@ protected:
 	int32_t Hx(int32_t fx);
 	int32_t deltaHx(Martix &M, Sequence index, toward act);
 	uint8_t Fx(Martix &M);
+	uint8_t SumOfInverNumber(Martix &M, int blank);
 
 private:
 	const uint8_t rank;
-	priority_queue<st_martix*, deque<st_martix*>, st_martix> q_open;
-	map<Hash, st_martix*> m_closed;
+	priority_queue<st_martix*, vector<st_martix*>, st_martix> q_open;
+	unordered_map<Hash, bool> m_closed;
 };
 
 PuzzleGame::PuzzleGame(uint8_t R): rank(R)
@@ -116,24 +118,25 @@ PuzzleGame::~PuzzleGame()
 
 }
 
-bool PuzzleGame::RecoverVector(Sequence *puzz, Sequence blank, vector<toward> &steps)
+bool PuzzleGame::Recover(Sequence *puzz, Sequence blank, vector<toward> &steps)
 {
 	auto st = alloc_state();
-	auto fx = 0;
-
-	int8_t index;
 
 	initial_state(st);
 	{
 		st->iParent = nullptr;
 		st->blank = blank;
 		copy_martix(st->Puzzle, puzz);
-		st->Hx = Hx(fx = Fx(st->Puzzle)) - Hx(0);
+		st->Hx = Hx(Fx(st->Puzzle)) - Hx(0);
 	}
-
-
-	//const static Hash fhash_table[] = { 0x1e6c5704,0x0b11ddf8,0x2487d50c };	fhash_table[rank - 3]
-	const Hash final_hash = 0x0b11ddf8;
+	/*
+	auto dist = blank >= rank ? 1 : 0;
+	auto sum = SumOfInverNumber(st->Puzzle, blank);
+	if (((sum ^ dist) & 1) == 1)
+		return false;
+		*/
+	const static Hash fhash_table[] = { 0x1e6c5704,0x0b11ddf8,0x2487d50c };	
+	const Hash final_hash = fhash_table[rank - 3];
 
 	for (auto Puzzle = &st->Puzzle; ; Puzzle = &st->Puzzle)
 	{
@@ -160,9 +163,9 @@ bool PuzzleGame::RecoverVector(Sequence *puzz, Sequence blank, vector<toward> &s
 
 void PuzzleGame::translateShow(vector<toward> &act, string &txt)
 {
-	for (int i = act.size() - 1; i >= 0; --i) {
-		static map<toward, string> direction { { UP, "¡ü " },{ RIGHT, "¡ú " },{ DOWN, "¡ý " },{ LEFT, "¡û " } };
-		txt = txt + direction[act[i]];
+	for (auto i = act.size(); i > 0; --i) {
+		static unordered_map<toward, string> direction { { UP, "¡ü " },{ RIGHT, "¡ú " },{ DOWN, "¡ý " },{ LEFT, "¡û " } };
+		txt = txt + direction[act[i - 1]];
 	}
 }
 
@@ -203,7 +206,7 @@ void PuzzleGame::put_into_openqueue(st_martix *st_parent)
 
 bool PuzzleGame::put_into_closedqueue(Hash hash, st_martix* st)
 {
-	auto existed = m_closed.insert(map<Hash, st_martix*>::value_type(hash, st));
+	auto existed = m_closed.insert(std::make_pair(hash, false));
 	return existed.second;
 }
 
@@ -234,7 +237,7 @@ int32_t PuzzleGame::Hx(int32_t fx)
 {
 	constexpr static auto Gx = 1;
 
-	return 5 * fx + 1 * Gx;
+	return 6 * fx + 1 * Gx;
 }
 
 int32_t PuzzleGame::deltaHx(Martix &M, Sequence index, toward act)
@@ -245,11 +248,7 @@ int32_t PuzzleGame::deltaHx(Martix &M, Sequence index, toward act)
 	}else{
 		auto col_o = M[index] / rank, col_p = index / rank;
 		return (col_o < col_p && !(act & NEGATIVE) || col_p < col_o && (act & NEGATIVE)) ? -1 : 1;
-	}/*
-	return (move & 1
-		? (row_o < row_p && (move & 2) || row_p < row_o && !(move & 2)) ? -1 : 1
-		: (col_o < col_p && !(move & 2) || col_p < col_o && (move & 2)) ? -1 : 1) \
-		;*/
+	}
 }
 
 uint8_t PuzzleGame::Fx(Martix &M)
@@ -261,4 +260,20 @@ uint8_t PuzzleGame::Fx(Martix &M)
 	}
 
 	return distance;
+}
+
+uint8_t PuzzleGame::SumOfInverNumber(Martix &M, int blank)
+{
+	uint8_t sum = 0;
+
+	for (int8_t i = total() - 1; i > 0; --i) {
+		if (i == blank)
+			continue;
+		for (int8_t j = i - 1; j >= 0 ; --j) {
+			if (j != blank && M[j] > M[i])
+				++sum;
+		}
+	}
+
+	return sum;
 }

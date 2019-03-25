@@ -11,10 +11,16 @@ int __cdecl main()
 {
 	vector<toward> act;
 	string steps;
-	vector<Sequence> store{ 7,0,5,1,11,6,9,8,12,14,13,4,10,15,2,3 };//2,1,7,5,0,3,4,8,6
+	vector<Sequence> store(16);//{7,0,5,1,11,6,9,8,12,14,13,4,10,15,2,3};/13
 	PuzzleGame sapphire(4);
 
-	sapphire.RecoverVector(&store[0], 8, act);
+	for (auto &x : store) {
+		cin >> (int&)x;
+	}
+	Sequence blank;
+	cin >> blank;
+
+	sapphire.Recover(&store[0], blank, act);
 	sapphire.translateShow(act, steps);
 
 	std::cout << steps.c_str() << std::endl;
